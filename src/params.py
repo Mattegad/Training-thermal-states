@@ -22,6 +22,3 @@ nbar_default = 0.0     # thermal occupation
 
 # Simulation options
 use_sparse = True
-
-
-/Users/gadanimatteo/Training thermal states/src/param.py
