@@ -21,10 +21,10 @@ SRC = src
 all: setup run
 
 setup:
-	@echo "🔧 Creating virtual environment and installing dependencies..."
-	python3 -m venv $(VENV)
+	@echo "🔧 Setting up virtual environment..."
+	@test -d $(VENV) || python3 -m venv $(VENV)
 	@$(PYTHON) -m pip install --upgrade pip
-	@$(PYTHON) -m pip install -r requirements.txt
+	@$(PYTHON) -m pip install --upgrade --upgrade-strategy eager -r requirements.txt
 	@echo "✅ Environment ready."
 
 run: train

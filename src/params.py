@@ -1,6 +1,4 @@
-# params.py
 # Paramètres physiques et numériques utilisés pour reproduire Fig.2
-import numpy as np
 
 # Physical parameters (use values similar to the paper)
 U = 12e-6           # nonlinearity (eV) used in paper; here unitless scaling is fine

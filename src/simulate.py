@@ -19,7 +19,6 @@ def bogoliubov_b(a, alpha=alphaD_default, r=0.0, theta=0.0):
     Build operator b = (a - alpha) cosh(r) + e^{2 i theta} (a.dag - alpha*) sinh(r)
     Note: a.dag() returns qutip operator.
     """
-    from qutip import qeye
     cosh = np.cosh(r)
     sinh = np.sinh(r)
     b = (a - alpha * qeye(a.shape[0])) * cosh + np.exp(2j*theta) * (a.dag() - np.conjugate(alpha) * qeye(a.shape[0])) * sinh
@@ -30,7 +29,6 @@ def collapse_ops_for_squeezed_env(a, alpha=alphaD_default, r=0.0, theta=0.0, nba
     Following Sec. 4.1, use Lindblad operators sqrt(kappa) b and sqrt(R) b.dag
     with R = nbar/(nbar+1) * kappa. We set kappa = gamma for simplicity.
     """
-    from qutip import destroy
     kappa = gamma
     R = (nbar / (nbar + 1.0)) * kappa if nbar > 0 else 0.0
     b = bogoliubov_b(a, alpha=alpha, r=r, theta=theta)

@@ -7,7 +7,6 @@ def compute_moments(omega, S, max_m=4):
     then normalized moments Mm = Mtilde_m / Mtilde_0 for m != 0.
     Return array [M0, M1, M2, ... , M_max_m], where M0 = Mtilde_0.
     """
-    domega = omega[1] - omega[0]
     Mtilde = []
     for m in range(max_m+1):
         Mtilde_m = np.trapz(S * (omega**m), omega)

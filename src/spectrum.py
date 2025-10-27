@@ -14,8 +14,6 @@ def compute_spectrum_via_correlation(H, c_ops, a, rho_ss, wlist=None, tlist=None
     Use QuTiP's correlation_2op_1t to compute g1(t) = <a^\dagger(t) a(0)>, then FFT -> S(w).
     This is a robust approach, but expensive.
     """
-    import numpy as np
-    from qutip import correlation_2op_1t
 
     # time grid for correlations: choose tmax and nt
     if tlist is None:

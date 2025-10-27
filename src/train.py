@@ -9,11 +9,11 @@ Main script to:
 import numpy as np
 from tqdm import tqdm
 from sklearn.linear_model import Ridge, LinearRegression
-from simulate import create_operators, hamiltonian_kerr, collapse_ops_for_squeezed_env, compute_steady_state
-from spectrum import compute_spectrum_via_correlation
-from moments import compute_moments
-from plot_utils import plot_spectra, plot_moments_vs_r, plot_predicted_vs_true
-from params import theta_default, alphaD_default, nbar_default, wmin, wmax, n_w
+from src.simulate import create_operators, hamiltonian_kerr, collapse_ops_for_squeezed_env, compute_steady_state
+from src.spectrum import compute_spectrum_via_correlation
+from src.moments import compute_moments
+from src.plot_utils import plot_spectra, plot_moments_vs_r, plot_predicted_vs_true
+from src.params import theta_default, alphaD_default, nbar_default, wmin, wmax, n_w
 
 def generate_spectrum_for_r(r_val, theta=theta_default, alpha=alphaD_default, nbar=nbar_default):
     a, _ = create_operators()
@@ -73,7 +73,7 @@ def main():
     all_r = np.concatenate([r_train, r_test])
     all_M = np.vstack([M_array, X_test])
     # normalize each moment column for display
-    from utils import normalize_moments
+    from src.utils import normalize_moments
     all_M_norm = normalize_moments(all_M)
     plot_moments_vs_r(all_r, all_M_norm)
     # c) predicted vs true
