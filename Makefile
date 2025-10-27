@@ -46,3 +46,9 @@ push:
 	git commit -m "Update: automatic push"
 	git push
 	@echo "✅ Code pushed."
+
+pull:
+	@echo "📥 Récupération des dernières modifications depuis GitHub..."
+	git pull
+	@echo "✅ Code mis à jour."
+

@@ -14,3 +14,18 @@ Recommandé: créer un environnement conda ou venv.
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+
+training-thermal-states/
+├─ README.md
+├─ requirements.txt
+├─ .gitignore
+├─ src/
+│  ├─ __init__.py          # définit le package Python
+│  ├─ params.py            # constantes et paramètres physiques
+│  ├─ utils.py             # helpers numériques (FFT, moments, normalisation)
+│  ├─ simulate.py          # construction Hamiltonien / collapse ops, steady-state
+│  ├─ spectrum.py          # calcul du spectre S(ω) via corrélations
+│  ├─ moments.py           # calcul des moments M0..M4
+│  ├─ train.py             # génération du jeu de données + régression + tracés
+│  └─ plot_utils.py        # fonctions de tracé (Figure 2)
+
