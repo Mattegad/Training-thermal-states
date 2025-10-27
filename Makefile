@@ -16,7 +16,7 @@ SRC = src
 # Basic commands
 # ========================================================
 
-.PHONY: all setup run train clean push
+.PHONY: all setup run train clean push pull
 
 all: setup run
 
@@ -31,8 +31,13 @@ run: train
 
 train:
 	@echo "🚀 Running training / Figure 2 simulation..."
-	@$(PYTHON) -m $(SRC).train
-	@echo "✅ Simulation complete."
+ifeq ($(RE),1)
+	@$(PYTHON) -m src.train --replot-only
+else
+	@$(PYTHON) -m src.train
+endif
+	@echo "✅ Done."
+
 
 clean:
 	@echo "🧹 Cleaning cache and outputs..."
@@ -51,4 +56,3 @@ pull:
 	@echo "📥 Récupération des dernières modifications depuis GitHub..."
 	git pull
 	@echo "✅ Code mis à jour."
-

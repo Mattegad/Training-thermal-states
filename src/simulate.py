@@ -7,7 +7,7 @@ and compute steady state.
 import numpy as np
 from qutip import destroy, qeye, tensor, steadystate, spre, spost, liouvillian
 from qutip import expect
-from params import Ncut, U, gamma_c, alphaD_default, theta_default, nbar_default
+from src.params import Ncut, U, gamma_c, alphaD_default, theta_default, nbar_default
 
 def create_operators(N=Ncut):
     a = destroy(N)
