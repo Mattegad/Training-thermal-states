@@ -14,11 +14,11 @@ import numpy as np
 from tqdm import tqdm
 from sklearn.linear_model import Ridge
 from src.simulate import create_operators, hamiltonian_kerr, collapse_ops_for_squeezed_env, compute_steady_state
-from src.spectrum import compute_spectrum_via_correlation
+from src.spectrum3 import compute_spectrum_via_correlation
 from src.moments import compute_moments
 from src.plot_utils import plot_spectra, plot_moments_vs_r, plot_predicted_vs_true
 from src.utils import normalize_moments
-from src.params import theta_default, alphaD_default, nbar_default, wmin, wmax, n_w
+from src.params import theta_default, alphaD_default, nbar_default, wmin, wmax, n_w, n_train, n_test
 
 OUTPUT_DIR = "output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -37,13 +37,13 @@ def generate_spectrum_for_r(r_val, theta=theta_default, alpha=alphaD_default, nb
     c_ops = collapse_ops_for_squeezed_env(a, alpha=alpha, r=r_val, theta=theta, nbar=nbar)
     rho_ss = compute_steady_state(H, c_ops)
     wlist = np.linspace(wmin, wmax, n_w)
-    w, S, _, _ = compute_spectrum_via_correlation(H, c_ops, a, rho_ss, wlist=wlist)
+    w, S = compute_spectrum_via_correlation(H, c_ops, a, rho_ss, wlist=wlist)
     return w, S
 
 def compute_and_save_data():
     """Compute training and test data, save to disk."""
     # --- TRAINING ---
-    r_train = np.linspace(0.0, 2.0, 10)
+    r_train = np.linspace(0.0, 2.0, n_train)
     omega_list, S_list, M_list = [], [], []
     print("Computing training spectra...")
     for r in tqdm(r_train):
@@ -59,7 +59,7 @@ def compute_and_save_data():
                         M_list=M_list)
 
     # --- TESTING ---
-    r_test = np.random.uniform(0.0, 2.0, 20)
+    r_test = np.random.uniform(0.0, 2.0, n_test)
     M_list_test, omega_list_test, S_list_test = [], [], []
     print("Computing testing spectra...")
     for r in tqdm(r_test):
@@ -109,6 +109,7 @@ def main(replot_only=False, show=False):
     # --- Train regression ---
     X_train = np.vstack(M_list)
     y_train = r_train
+
     model = Ridge(alpha=1e-14, fit_intercept=True)
     model.fit(X_train, y_train)
 
@@ -151,4 +152,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(replot_only=args.replot_only, show=args.show)
+
 

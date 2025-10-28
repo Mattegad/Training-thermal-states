@@ -6,7 +6,8 @@ Automatically ensures valid output filenames and formats.
 """
 import os
 import matplotlib.pyplot as plt
-import numpy as np
+from matplotlib.cm import get_cmap
+from matplotlib.colors import Normalize
 
 def _safe_savefig(fig, outname=None):
     """Save figure safely with .png default format and fallback."""
@@ -26,14 +27,28 @@ def _safe_savefig(fig, outname=None):
         fig.show()
 
 def plot_spectra(omega_list, S_list, r_train, outname=None):
-    """Plot training spectra as Figure 2(a)-like."""
+    """Plot training spectra with colorbar for r values (blue to red)."""
     fig, ax = plt.subplots(figsize=(6, 4))
+    
+    # Colormap : bleu à rouge
+    cmap = get_cmap("coolwarm")  # bleu = petit r, rouge = grand r
+    norm = Normalize(vmin=0.0, vmax=2.0)  # r varie de 0 à 2
+
+    # Tracer chaque spectre avec la couleur correspondante
     for w, S, r in zip(omega_list, S_list, r_train):
-        ax.plot(w, S / np.max(S), label=f"r={r:.2f}")
+        ax.plot(w, S, color=cmap(norm(r)))
+
     ax.set_xlabel("ω / κ")
     ax.set_ylabel("Normalized S(ω)")
+    ax.set_yscale("log")
     ax.set_title("Training spectra vs squeezing parameter r")
-    ax.legend(fontsize=8, loc="best")
+
+    # Ajouter colorbar
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])  # nécessaire pour colorbar
+    cbar = fig.colorbar(sm, ax=ax)
+    cbar.set_label("r value")
+
     _safe_savefig(fig, outname)
     plt.close(fig)
 

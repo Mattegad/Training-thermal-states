@@ -29,14 +29,29 @@ setup:
 
 run: train
 
+
 train:
 	@echo "🚀 Running training / Figure 2 simulation..."
+
 ifeq ($(RE),1)
-	@$(PYTHON) -m src.train --replot-only
+	@if [ "$(SHOW)" = "1" ]; then \
+		$(PYTHON) -m src.train --replot-only --show; \
+	else \
+		$(PYTHON) -m src.train --replot-only; \
+	fi
 else
-	@$(PYTHON) -m src.train
+	@if [ "$(SHOW)" = "1" ]; then \
+		$(PYTHON) -m src.train --show; \
+	else \
+		$(PYTHON) -m src.train; \
+	fi
 endif
+
 	@echo "✅ Done."
+
+
+
+
 
 
 clean:

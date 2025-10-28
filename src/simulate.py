@@ -38,12 +38,12 @@ def collapse_ops_for_squeezed_env(a, alpha=alphaD_default, r=0.0, theta=0.0, nba
     if R > 0:
         c_ops.append(np.sqrt(R) * b.dag())
     # Also include usual photon loss sqrt(gamma) a
-    c_ops.append(np.sqrt(gamma) * a)
+    #c_ops.append(np.sqrt(gamma) * a)
     return c_ops
 
 def hamiltonian_kerr(a, U_val=U):
     # H = U/2 * a^\dagger a^\dagger a a
-    H = 0.5 * U_val * (a.dag() * a.dag() * a * a)
+    H = 0.5 * U_val * (a.dag() * a.dag() * a * a) 
     return H
 
 def compute_steady_state(H, c_ops):
