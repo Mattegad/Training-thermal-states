@@ -1,4 +1,3 @@
-````{"id":"59124","variant":"standard","title":"README complet du projet Training-thermal-states"}
 # Training-thermal-states  
 **Tomographie d’états quantiques par régression (réservoir computing)**
 
@@ -114,6 +113,3 @@ Les contributions sont les bienvenues !
 ## 📘 Licence & contexte  
 Ce projet illustre la **tomographie d’états quantiques** (états thermiques ou squeezés) via des approches de simulation et d’apprentissage supervisé.  
 Vérifiez la **licence** du dépôt pour les conditions d’utilisation et de redistribution.  
-
----
-````
