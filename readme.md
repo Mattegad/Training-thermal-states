@@ -2,9 +2,9 @@
 **Tomographie d’états quantiques par régression (réservoir computing)**
 
 Ce projet permet de :  
-- calculer les spectres \(S(\omega)\) d’une cavité non-linéaire couplée à un environnement squeezé,  
-- extraire les moments \(M_0\ldots M_4\),  
-- entraîner une régression (linéaire ou autre) pour prédire le paramètre de squeezing \(r\).  
+- calculer les spectres $\(S(\omega)\)$ d’une cavité non-linéaire couplée à un environnement squeezé,  
+- extraire les moments $\(M_0\ldots M_4\)$,  
+- entraîner une régression (linéaire ou autre) pour prédire le paramètre de squeezing $\(r\)$.  
 
 ---
 
