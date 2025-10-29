@@ -5,7 +5,7 @@ eV_to_Hz = 2.42e14
 
 # Physical parameters (use values similar to the paper)
 U = 12e-6   # nonlinearity (s^-1) used in paper; here unitless scaling is fine
-gamma_c = 67e9/eV_to_Hz/6.28      # decay rate (s^-1) -> choose units consistent with simulation
+gamma_c = 67e9/eV_to_Hz/3.14      # decay rate (s^-1) -> choose units consistent with simulation
 hbar = 1.0
 
 # Numerical parameters
