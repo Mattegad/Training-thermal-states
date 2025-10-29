@@ -8,6 +8,10 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib.cm import get_cmap
 from matplotlib.colors import Normalize
+from matplotlib.colors import LinearSegmentedColormap
+
+colors = ["#7D5BA6", "#9B77C3", "#B497D6", "#E6A87C", "#F2C08C"]
+cmap = LinearSegmentedColormap.from_list("orange_to_violet", colors)
 
 def _safe_savefig(fig, outname=None):
     """Save figure safely with .png default format and fallback."""
@@ -31,15 +35,14 @@ def plot_spectra(omega_list, S_list, r_train, outname=None):
     fig, ax = plt.subplots(figsize=(6, 4))
     
     # Colormap : bleu à rouge
-    cmap = get_cmap("coolwarm")  # bleu = petit r, rouge = grand r
     norm = Normalize(vmin=0.0, vmax=2.0)  # r varie de 0 à 2
 
     # Tracer chaque spectre avec la couleur correspondante
     for w, S, r in zip(omega_list, S_list, r_train):
-        ax.plot(w, S, color=cmap(norm(r)))
+        ax.plot(w*1e3, S, color=cmap(norm(r)))
 
-    ax.set_xlabel("ω / κ")
-    ax.set_ylabel("Normalized S(ω)")
+    ax.set_xlabel("$\omega$ (meV)")
+    ax.set_ylabel("S (a.u.)")
     ax.set_yscale("log")
     ax.set_title("Training spectra vs squeezing parameter r")
 
@@ -47,8 +50,8 @@ def plot_spectra(omega_list, S_list, r_train, outname=None):
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])  # nécessaire pour colorbar
     cbar = fig.colorbar(sm, ax=ax)
-    cbar.set_label("r value")
-
+    cbar.set_label("r")
+    plt.margins(x=0)
     _safe_savefig(fig, outname)
     plt.close(fig)
 

@@ -14,7 +14,7 @@ import numpy as np
 from tqdm import tqdm
 from sklearn.linear_model import Ridge
 from src.simulate import create_operators, hamiltonian_kerr, collapse_ops_for_squeezed_env, compute_steady_state
-from src.spectrum3 import compute_spectrum_via_correlation
+from src.spectrum2 import compute_spectrum_via_correlation
 from src.moments import compute_moments
 from src.plot_utils import plot_spectra, plot_moments_vs_r, plot_predicted_vs_true
 from src.utils import normalize_moments

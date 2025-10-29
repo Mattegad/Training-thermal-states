@@ -39,18 +39,19 @@ def compute_spectrum_via_correlation(H, c_ops, a, rho_ss, wlist=None):
     a_fluct = a - a_mean * qeye(N)
 
     # --- Time grid for correlation ---
-    dt = 0.005 / gamma_c  # small enough for good temporal resolution
-    N_t = 2**14             # power-of-2 for FFT efficiency
-    tlist = dt * np.arange(N_t)
+    t_max = 50/gamma_c
+    nt = 2000
+    tlist = np.linspace(0, t_max, nt)
 
     # --- Correlation <a_fluct(t) a_fluct^dag(0)> ---
-    corr = correlation_2op_1t(H, rho_ss, tlist, c_ops, a_fluct, a_fluct.dag())
+    corr = correlation_2op_1t(H, rho_ss, tlist, c_ops, a_fluct.dag(), a_fluct)
 
     # --- FFT to get spectrum ---
+    dt = tlist[1] - tlist[0]
     S_w_full = np.fft.fftshift(np.fft.fft(corr)) * dt
-    freq_full = np.fft.fftshift(np.fft.fftfreq(N_t, dt)) * 2 * np.pi  # in eV
+    freq_full = np.fft.fftshift(2 * np.pi * np.fft.fftfreq(nt, dt))   # in eV
 
-    S_w_full = np.abs(S_w_full)
+    S_w_full = np.real(S_w_full)
 
     # --- Restrict to desired wlist ---
     if wlist is None:

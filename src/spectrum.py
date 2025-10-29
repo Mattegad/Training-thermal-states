@@ -1,5 +1,5 @@
 import numpy as np
-from qutip import spectrum, Qobj, expect
+from qutip import spectrum, Qobj, expect, qeye
 from src.params import wmin, wmax, n_w
 
 
@@ -16,11 +16,13 @@ def compute_spectrum_via_correlation(H, c_ops, a, rho_ss, wlist=None,
     if not isinstance(rho_ss, Qobj):
         raise TypeError("rho_ss must be a QuTiP Qobj density matrix")
 
+    N = a.shape[0]
+
     # Expectation value <a>
     alpha_mean = expect(a, rho_ss)
 
     # Centered operator to remove coherent component
-    a_fluct = a - alpha_mean * a.unit()
+    a_fluct = a - alpha_mean * qeye(N)
 
     # Compute raw spectrum
     S_raw = spectrum(H=H, wlist=wlist, c_ops=c_ops, a_op=a_fluct.dag(), b_op=a_fluct)

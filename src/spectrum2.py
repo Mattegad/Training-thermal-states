@@ -1,6 +1,6 @@
 # spectrum.py
 import numpy as np
-from qutip import correlation_2op_1t, Qobj
+from qutip import correlation_2op_1t, Qobj, expect, qeye
 from src.params import wmin, wmax, n_w, gamma_c
 
 def compute_spectrum_via_correlation(H, c_ops, a, rho_ss, wlist=None, tlist=None):
@@ -19,14 +19,20 @@ def compute_spectrum_via_correlation(H, c_ops, a, rho_ss, wlist=None, tlist=None
     if not isinstance(rho_ss, Qobj):
         raise TypeError("rho_ss must be a QuTiP Qobj density matrix")
 
+    N = a.shape[0]
+
+    # --- Operator of fluctuations ---
+    a_mean = expect(a, rho_ss)
+    a_fluct = a - a_mean * qeye(N)
+
     # ✅ QuTiP 5.x syntax
     corr = correlation_2op_1t(
         H=H,
         state0=rho_ss,
         taulist=tlist,
         c_ops=c_ops,
-        a_op=a.dag(),
-        b_op=a
+        a_op=a_fluct.dag(),
+        b_op=a_fluct
     )
 
     # --- FFT pour obtenir S(ω) ---
@@ -39,4 +45,4 @@ def compute_spectrum_via_correlation(H, c_ops, a, rho_ss, wlist=None, tlist=None
     S = np.interp(wlist, freqs_shift, np.real(Gs))
     S = np.maximum(S, 0.0)
 
-    return wlist, S, tlist, corr
+    return wlist, S
