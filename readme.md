@@ -4,7 +4,7 @@
 This project aims at :  
 - compute the spectrum $\(S(\omega)\)$ (or other features of interest) of a non linear cavity coupled to different quantum states (for example squeezed states),  
 - extract the moments $\(M_0\ldots M_4\)$,  
-- train a regression (e.g. linear) to predict the parameters of the quantum states ($\r$ and $\theta$ in case of squeezed states).  
+- train a regression (e.g. linear) to predict the parameters of the quantum states ($\ r\$ and $\theta$ in case of squeezed states).  
 
 ---
 
