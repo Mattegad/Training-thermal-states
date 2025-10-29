@@ -1,10 +1,10 @@
 # Training-thermal-states  
-**Tomographie d’états quantiques par régression (réservoir computing)**
+**Quantum state tomography (spectroscopy) with reservoir computing**
 
-Ce projet permet de :  
-- calculer les spectres $\(S(\omega)\)$ d’une cavité non-linéaire couplée à un environnement squeezé,  
-- extraire les moments $\(M_0\ldots M_4\)$,  
-- entraîner une régression (linéaire ou autre) pour prédire le paramètre de squeezing $\(r\)$.  
+This project aims at :  
+- compute the spectrum $\(S(\omega)\)$ of a non linear cavity coupled to different quantum states (for example squeezed states),  
+- extract the moments $\(M_0\ldots M_4\)$,  
+- train a regression (e.g. linear) to predict the parameters of the quantum states ($\(r\)$ and $\theta$ in case of squeezed states).  
 
 ---
 
@@ -14,10 +14,6 @@ Avant d’installer et de faire fonctionner le projet, assurez-vous d’avoir :
 - Un **environnement virtuel** (recommandé)  
 - Les **dépendances** listées dans `requirements.txt`  
 
-Pour installer les dépendances :  
-```bash
-pip install -r requirements.txt
-```
 
 ---
 
@@ -46,10 +42,13 @@ Le projet comprend un **Makefile** qui automatise certaines tâches :
 
 | Commande | Description |
 |-----------|-------------|
+| `make setup` | Créer et configure un environnement virtuel avec les requirements |
 | `make run` | Lance le script principal (exécution de l’apprentissage et tracés) |
+| `make run SHOW=0` | Recharge les données sauvegardées et retrace les courbes |
 | `make clean` | Supprime les fichiers temporaires et les sorties générées |
-| `make test` | Lance les tests (si disponibles) |
-| `make docs` | Génère la documentation (optionnel) |
+| `make push` | Commit et push les changements sur GitHub |
+| `make pull` | Pull les changements effectués sur GitHub |
+
 
 Exemple :
 ```bash
