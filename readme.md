@@ -46,7 +46,7 @@ The projects contains a **Makefile** which automates some tasks :
 | `make run` | Run the principal script (training and plots) |
 | `make run SHOW=0` | Reload the saved data and replot the plots |
 | `make clean` | Clean the temporary files and the saved data |
-| `make push` | Commit et push to GitHub |
+| `make push` | Commit and push to GitHub |
 | `make pull` | Pull the changes from GitHub |
 
 
