@@ -1,26 +1,37 @@
-# utils.py
+# src/utils.py
 import numpy as np
 from scipy.fft import fft, fftfreq, fftshift
 
-def fourier_transform_time_signal(t, g, w):
+def fourier_transform_time_signal(t: np.ndarray, g: np.ndarray, w: np.ndarray) -> np.ndarray:
     """
-    Compute Fourier transform integral int_0^T g(t) e^{-i w t} dt.
-    We assume t is 1D array, g same shape. Returns S(w) evaluated at array w.
-    Here we use numerical FFT and interpolation.
+    Calcule la transformée de Fourier numérique d'un signal g(t) sur l'axe de temps t.
+    
+    Args:
+        t: array temps, uniforme
+        g: array du signal g(t)
+        w: array de fréquences souhaitées pour l'évaluation
+    
+    Returns:
+        S(w): transformée de Fourier interpolée aux fréquences w
     """
-    # zero-pad / uniform t required. We'll assume t is uniform.
     dt = t[1] - t[0]
     N = len(t)
-    G = np.fft.fft(g) * dt
-    freqs = 2*np.pi*fftfreq(N, d=dt)
-    # arrange as frequency axis symmetric
+    G = fft(g) * dt
+    freqs = 2 * np.pi * fftfreq(N, d=dt)
     Gshift = fftshift(G)
     freqs_shift = fftshift(freqs)
-    # interpolate to requested w
-    return np.interp(w, freqs_shift, Gshift.real)  # take real part as spectrum
+    return np.interp(w, freqs_shift, Gshift.real)
 
-def normalize_moments(M):
-    # Rescale each moment vector to its max absolute value (as in figure)
+def normalize_moments(M: np.ndarray) -> np.ndarray:
+    """
+    Normalise chaque colonne d'une matrice de moments par sa valeur absolue maximale.
+    
+    Args:
+        M: array shape (n_samples, n_moments)
+    
+    Returns:
+        Mnorm: array normalisé (même shape)
+    """
     M = np.asarray(M)
     Mnorm = []
     for col in M.T:

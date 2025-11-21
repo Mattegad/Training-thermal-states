@@ -1,218 +1,261 @@
-# train_extended.py
+# train.py
 import os
 import argparse
 import numpy as np
 from tqdm import tqdm
 from sklearn.linear_model import Ridge
-from src.simulate import create_operators, hamiltonian_kerr, collapse_ops_for_squeezed_env, compute_steady_state
-from src.spectrum_new import compute_spectrum_via_correlation
-from src.moments import compute_moments
-from src.plot_utils import plot_spectra, plot_moments_vs_r, plot_predicted_vs_true
+from qutip import destroy
+
+from src.config import physical_params, numerical_params, squeezing_params
+from src.hamiltonian import HamiltonianFactory
+from src.dissipation import DissipationFactory
+from src.steady_state import SteadyStateSolver
+from src.spectrum import SpectrumCalculator
+from src.moments import MomentsCalculator
+from src.plot_utils import Plotter
 from src.utils import normalize_moments
-from src.params import theta_default, alphaD_default, nbar_default, wmin, wmax, n_w, n_train, n_test
-
-OUTPUT_DIR = "output"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-# Files for standard spectrum
-TRAIN_FILE_STD = os.path.join(OUTPUT_DIR, "training_data_std.npz")
-TEST_FILE_STD = os.path.join(OUTPUT_DIR, "testing_data_std.npz")
-
-# Files for Si- spectrum
-TRAIN_FILE_SI = os.path.join(OUTPUT_DIR, "training_data_si.npz")
-TEST_FILE_SI = os.path.join(OUTPUT_DIR, "testing_data_si.npz")
 
 
+class Trainer:
+    def __init__(self, output_dir="output"):
+        self.output_dir = output_dir
+        os.makedirs(output_dir, exist_ok=True)
 
-# --------------------------------------------------------------
-# Data generation functions
-# --------------------------------------------------------------
+        # files
+        self.train_std = os.path.join(output_dir, "training_data_std.npz")
+        self.test_std  = os.path.join(output_dir, "testing_data_std.npz")
+        self.train_si  = os.path.join(output_dir, "training_data_si.npz")
+        self.test_si   = os.path.join(output_dir, "testing_data_si.npz")
 
-def generate_spectrum_for_r(r_val, theta=theta_default, alpha=alphaD_default, nbar=nbar_default, compute_si=True):
-    """Compute one steady-state spectrum for a given squeezing r."""
-    a, _ = create_operators()
-    H = hamiltonian_kerr(a)
-    c_ops = collapse_ops_for_squeezed_env(a, alpha=alpha, r=r_val, theta=theta, nbar=nbar)
-    rho_ss = compute_steady_state(H, c_ops)
-    wlist = np.linspace(wmin, wmax, n_w)
-    if compute_si:
-        w, S, S_i = compute_spectrum_via_correlation(
-            H, c_ops, a, rho_ss, wlist=wlist,
-            compute_si=True
+        # tools
+        self.moments_calc = MomentsCalculator()
+        self.plotter = Plotter()
+
+        # storage
+        self.data = None
+
+    # ------------------------------------------------------------------
+    # --- Core physics -------------------------------------------------
+    # ------------------------------------------------------------------
+    def generate_spectrum(self, r_val, compute_si=True):
+        """Compute stationary spectrum for a given r."""
+        Ncut = numerical_params.Ncut
+        a = destroy(Ncut)
+
+        # Hamiltonian
+        H = HamiltonianFactory.make("kerr", a, U_val=physical_params.U)
+
+        # Dissipation
+        c_ops = DissipationFactory.make("squeezed", a,
+                                        alpha=squeezing_params.alphaD_default,
+                                        r=r_val,
+                                        theta=squeezing_params.theta_default,
+                                        nbar=squeezing_params.nbar_default,
+                                        gamma=physical_params.gamma_c)
+
+        # Steady state
+        rho_ss = SteadyStateSolver(H, c_ops).compute()
+
+        # Frequencies
+        wlist = np.linspace(numerical_params.wmin, numerical_params.wmax, numerical_params.n_w)
+
+        # Spectrum
+        calc = SpectrumCalculator(H, a, rho_ss, c_ops, wlist=wlist, compute_si=compute_si)
+        return calc.compute()
+
+    # ------------------------------------------------------------------
+    # --- Data generation ---------------------------------------------
+    # ------------------------------------------------------------------
+    def compute_dataset(self):
+        """Compute and save all training and test data."""
+
+        r_train = np.linspace(0.0, 2.0, numerical_params.n_train)
+        r_test  = np.random.uniform(0.0, 2.0, numerical_params.n_test)
+
+        # Storage dict
+        result = {
+            "train_std":   {"r": r_train, "omega": [], "S": [], "M": []},
+            "train_si":    {"r": r_train, "omega": [], "S": [], "M": []},
+            "test_std":    {"r": r_test,  "omega": [], "S": [], "M": []},
+            "test_si":     {"r": r_test,  "omega": [], "S": [], "M": []},
+        }
+
+        # ------------------------
+        # TRAINING
+        # ------------------------
+        print("\n📘 Computing TRAINING data")
+        for r in tqdm(r_train):
+            # Standard spectrum
+            w, S = self.generate_spectrum(r, compute_si=False)
+            result["train_std"]["omega"].append(w)
+            result["train_std"]["S"].append(S)
+            result["train_std"]["M"].append(self.moments_calc.compute(w, S))
+
+            # S_i spectrum
+            w, _, S_i = self.generate_spectrum(r, compute_si=True)
+            result["train_si"]["omega"].append(w)
+            result["train_si"]["S"].append(S_i)
+            result["train_si"]["M"].append(self.moments_calc.compute(w, S_i))
+
+        # ------------------------
+        # TEST
+        # ------------------------
+        print("\n📗 Computing TEST data")
+        for r in tqdm(r_test):
+            # Standard
+            w, S = self.generate_spectrum(r, compute_si=False)
+            result["test_std"]["omega"].append(w)
+            result["test_std"]["S"].append(S)
+            result["test_std"]["M"].append(self.moments_calc.compute(w, S))
+
+            # S_i
+            w, _, S_i = self.generate_spectrum(r, compute_si=True)
+            result["test_si"]["omega"].append(w)
+            result["test_si"]["S"].append(S_i)
+            result["test_si"]["M"].append(self.moments_calc.compute(w, S_i))
+
+        # Save
+        np.savez_compressed(self.train_std, **result["train_std"])
+        np.savez_compressed(self.train_si,  **result["train_si"])
+        np.savez_compressed(self.test_std,  **result["test_std"])
+        np.savez_compressed(self.test_si,   **result["test_si"])
+
+        print(f"\n💾 Data saved to '{self.output_dir}/'")
+
+        self.data = result
+        return result
+
+    # ------------------------------------------------------------------
+    # --- Load data ----------------------------------------------------
+    # ------------------------------------------------------------------
+    def load_dataset(self):
+        files = [self.train_std, self.test_std, self.train_si, self.test_si]
+        if not all(os.path.exists(f) for f in files):
+            print("⚠️ No saved data found → computing dataset.")
+            return self.compute_dataset()
+
+        print("📂 Loading dataset from disk...")
+        data = {
+            "train_std": dict(np.load(self.train_std, allow_pickle=True)),
+            "train_si":  dict(np.load(self.train_si,  allow_pickle=True)),
+            "test_std":  dict(np.load(self.test_std,  allow_pickle=True)),
+            "test_si":   dict(np.load(self.test_si,   allow_pickle=True)),
+        }
+        self.data = data
+        return data
+
+    # ------------------------------------------------------------------
+    # --- Regression ---------------------------------------------------
+    # ------------------------------------------------------------------
+    def train_regression(self):
+        """Train Ridge regression models for STD and SI- spectra."""
+        d = self.data
+
+        def prepare(split, kind):
+            X = np.vstack(d[split + "_" + kind]["M"])
+            y = d[split + "_" + kind]["r"]
+            return X, y
+
+        Xtr_std, ytr_std = prepare("train", "std")
+        Xte_std, yte_std = prepare("test",  "std")
+
+        Xtr_si, ytr_si = prepare("train", "si")
+        Xte_si, yte_si = prepare("test",  "si")
+
+        model_std = Ridge(alpha=1e-14).fit(Xtr_std, ytr_std)
+        model_si  = Ridge(alpha=1e-14).fit(Xtr_si,  ytr_si)
+
+        pred_std = model_std.predict(Xte_std)
+        pred_si  = model_si.predict(Xte_si)
+
+        nrmse_std = np.sqrt(np.mean((pred_std - yte_std)**2) / np.mean(yte_std**2))
+        nrmse_si  = np.sqrt(np.mean((pred_si  - yte_si)**2) / np.mean(yte_si**2))
+
+        print(f"\n📉 Regression performance:")
+        print(f"  → STD : {100*nrmse_std:.3f} % NRMSE")
+        print(f"  → SI- : {100*nrmse_si:.3f} % NRMSE")
+
+        return model_std, model_si, pred_std, pred_si
+
+    # ------------------------------------------------------------------
+    # --- Plotting -----------------------------------------------------
+    # ------------------------------------------------------------------
+    def generate_plots(self, model_std, model_si, pred_std, pred_si, show=False):
+        d = self.data
+
+        def out(name):
+            return None if show else os.path.join(self.output_dir, name)
+
+        # SPECTRA
+        self.plotter.plot_spectra(
+            d["train_std"]["omega"],
+            d["train_std"]["S"],
+            d["train_std"]["r"],
+            outname=out("spectra_training_std.png")
         )
-        return w, S, S_i
-    else:
-        w, S = compute_spectrum_via_correlation(H, c_ops, a, rho_ss, wlist=wlist)
-        return w, S
 
-def compute_and_save_data():
-    """Compute training and test data for both standard and Si- spectra."""
-    # --- TRAINING ---
-    r_train = np.linspace(0.0, 2.0, n_train)
-    omega_list_std, S_list_std, M_list_std = [], [], []
-    omega_list_si, S_list_si, M_list_si = [], [], []
+        self.plotter.plot_spectra(
+            d["train_si"]["omega"],
+            d["train_si"]["S"],
+            d["train_si"]["r"],
+            outname=out("spectra_training_si.png")
+        )
 
-    print("Computing training spectra...")
-    for r in tqdm(r_train):
-        # Standard spectrum
-        w, S = generate_spectrum_for_r(r, compute_si=False)
-        omega_list_std.append(w)
-        S_list_std.append(S)
-        M_list_std.append(compute_moments(w, S, max_m=4))
+        # MOMENTS VS R
+        all_r_std = np.concatenate([d["train_std"]["r"], d["test_std"]["r"]])
+        all_r_si  = np.concatenate([d["train_si"]["r"],  d["test_si"]["r"]])
 
-        # Si- spectrum
-        w, _, S_i = generate_spectrum_for_r(r, compute_si=True)
-        omega_list_si.append(w)
-        S_list_si.append(S_i)
-        M_list_si.append(compute_moments(w, S_i, max_m=4))
+        all_M_std = np.vstack([np.vstack(d["train_std"]["M"]),
+                               np.vstack(d["test_std"]["M"])])
+        all_M_si  = np.vstack([np.vstack(d["train_si"]["M"]),
+                               np.vstack(d["test_si"]["M"])])
 
-    np.savez_compressed(TRAIN_FILE_STD,
-                        r_train=r_train,
-                        omega_list=omega_list_std,
-                        S_list=S_list_std,
-                        M_list=M_list_std)
+        self.plotter.plot_moments_vs_r(
+            all_r_std, normalize_moments(all_M_std),
+            outname=out("moments_vs_r_std.png")
+        )
+        self.plotter.plot_moments_vs_r(
+            all_r_si, normalize_moments(all_M_si),
+            outname=out("moments_vs_r_si.png")
+        )
 
-    np.savez_compressed(TRAIN_FILE_SI,
-                        r_train=r_train,
-                        omega_list=omega_list_si,
-                        S_list=S_list_si,
-                        M_list=M_list_si)
+        # PREDICTION VS TRUE
+        self.plotter.plot_predicted_vs_true(
+            d["test_std"]["r"], pred_std,
+            outname=out("pred_vs_true_std.png")
+        )
+        self.plotter.plot_predicted_vs_true(
+            d["test_si"]["r"], pred_si,
+            outname=out("pred_vs_true_si.png")
+        )
 
-    # --- TESTING ---
-    r_test = np.random.uniform(0.0, 2.0, n_test)
-    omega_list_test_std, S_list_test_std, M_list_test_std = [], [], []
-    omega_list_test_si, S_list_test_si, M_list_test_si = [], [], []
+        if show:
+            print("👀 Plots displayed")
+        else:
+            print(f"📁 Plots saved in '{self.output_dir}/'")
 
-    print("Computing testing spectra...")
-    for r in tqdm(r_test):
-        w, S = generate_spectrum_for_r(r, compute_si=False)
-        omega_list_test_std.append(w)
-        S_list_test_std.append(S)
-        M_list_test_std.append(compute_moments(w, S, max_m=4))
-
-        w, _, S_i = generate_spectrum_for_r(r, compute_si=True)
-        omega_list_test_si.append(w)
-        S_list_test_si.append(S_i)
-        M_list_test_si.append(compute_moments(w, S_i, max_m=4))
-
-    np.savez_compressed(TEST_FILE_STD,
-                        r_test=r_test,
-                        omega_list_test=omega_list_test_std,
-                        S_list_test=S_list_test_std,
-                        M_list_test=M_list_test_std)
-
-    np.savez_compressed(TEST_FILE_SI,
-                        r_test=r_test,
-                        omega_list_test=omega_list_test_si,
-                        S_list_test=S_list_test_si,
-                        M_list_test=M_list_test_si)
-
-    print(f"✅ Data saved to '{OUTPUT_DIR}/'")
-    return (r_train, omega_list_std, S_list_std, M_list_std,
-            r_train, omega_list_si, S_list_si, M_list_si,
-            r_test, omega_list_test_std, S_list_test_std, M_list_test_std,
-            r_test, omega_list_test_si, S_list_test_si, M_list_test_si)
-
-def load_data():
-    """Load previously computed data for both spectra."""
-    if all(os.path.exists(f) for f in [TRAIN_FILE_STD, TEST_FILE_STD, TRAIN_FILE_SI, TEST_FILE_SI]):
-        print("📂 Loading data from disk...")
-        train_std = np.load(TRAIN_FILE_STD, allow_pickle=True)
-        test_std = np.load(TEST_FILE_STD, allow_pickle=True)
-        train_si = np.load(TRAIN_FILE_SI, allow_pickle=True)
-        test_si = np.load(TEST_FILE_SI, allow_pickle=True)
-        return (train_std["r_train"], train_std["omega_list"], train_std["S_list"], train_std["M_list"],
-                train_si["r_train"], train_si["omega_list"], train_si["S_list"], train_si["M_list"],
-                test_std["r_test"], test_std["omega_list_test"], test_std["S_list_test"], test_std["M_list_test"],
-                test_si["r_test"], test_si["omega_list_test"], test_si["S_list_test"], test_si["M_list_test"])
-    else:
-        print("⚠️ No saved data found, computing everything...")
-        return compute_and_save_data()
-
-# --------------------------------------------------------------
-# Main function
-# --------------------------------------------------------------
-
-def main(replot_only=False, show=False):
-    # --- Load or compute data ---
-    if replot_only:
-        if not all(os.path.exists(f) for f in [TRAIN_FILE_STD, TEST_FILE_STD, TRAIN_FILE_SI, TEST_FILE_SI]):
-            print("⚠️ No saved data found, need to compute first.")
+    # ------------------------------------------------------------------
+    # --- Full pipeline ------------------------------------------------
+    # ------------------------------------------------------------------
+    def run(self, replot_only=False, show=False):
+        if replot_only:
+            self.load_dataset()
+            model_std, model_si, pred_std, pred_si = self.train_regression()
+            self.generate_plots(model_std, model_si, pred_std, pred_si, show=show)
             return
-        (r_train_std, omega_list_std, S_list_std, M_list_std,
-         r_train_si, omega_list_si, S_list_si, M_list_si,
-         r_test_std, omega_list_test_std, S_list_test_std, M_list_test_std,
-         r_test_si, omega_list_test_si, S_list_test_si, M_list_test_si) = load_data()
-    else:
-        (r_train_std, omega_list_std, S_list_std, M_list_std,
-         r_train_si, omega_list_si, S_list_si, M_list_si,
-         r_test_std, omega_list_test_std, S_list_test_std, M_list_test_std,
-         r_test_si, omega_list_test_si, S_list_test_si, M_list_test_si) = load_data()
 
-    # --- Train regression for standard spectrum ---
-    X_train_std = np.vstack(M_list_std)
-    y_train_std = r_train_std
-    model_std = Ridge(alpha=1e-14, fit_intercept=True)
-    model_std.fit(X_train_std, y_train_std)
-
-    X_test_std = np.vstack(M_list_test_std)
-    y_test_std = r_test_std
-    y_pred_std = model_std.predict(X_test_std)
-    nrmse_std = np.sqrt(np.mean((y_pred_std - y_test_std)**2) / np.mean(y_test_std**2))
-    print(f"NRMSE (standard) = {100.*nrmse_std:.3f} %")
-
-    # --- Train regression for Si- spectrum ---
-    X_train_si = np.vstack(M_list_si)
-    y_train_si = r_train_si
-    model_si = Ridge(alpha=1e-14, fit_intercept=True)
-    model_si.fit(X_train_si, y_train_si)
-
-    X_test_si = np.vstack(M_list_test_si)
-    y_test_si = r_test_si
-    y_pred_si = model_si.predict(X_test_si)
-    nrmse_si = np.sqrt(np.mean((y_pred_si - y_test_si)**2) / np.mean(y_test_si**2))
-    print(f"NRMSE (Si-) = {100.*nrmse_si:.3f} %")
-
-    # --- Replot / visualize ---
-    if show:
-        out = None
-    else:
-        out = lambda name: os.path.join(OUTPUT_DIR, name)
-
-    plot_spectra(omega_list_std, S_list_std, r_train_std,
-                 outname=None if show else out("spectra_training_std.png"))
-    plot_spectra(omega_list_si, S_list_si, r_train_si,
-                 outname=None if show else out("spectra_training_si.png"))
-
-    all_r_std = np.concatenate([r_train_std, r_test_std])
-    all_M_std = np.vstack([X_train_std, X_test_std])
-    all_M_norm_std = normalize_moments(all_M_std)
-    plot_moments_vs_r(all_r_std, all_M_norm_std,
-                      outname=None if show else out("moments_vs_r_std.png"))
-
-    all_r_si = np.concatenate([r_train_si, r_test_si])
-    all_M_si = np.vstack([X_train_si, X_test_si])
-    all_M_norm_si = normalize_moments(all_M_si)
-    plot_moments_vs_r(all_r_si, all_M_norm_si,
-                      outname=None if show else out("moments_vs_r_si.png"))
-
-    plot_predicted_vs_true(y_test_std, y_pred_std,
-                           outname=None if show else out("pred_vs_true_std.png"))
-    plot_predicted_vs_true(y_test_si, y_pred_si,
-                           outname=None if show else out("pred_vs_true_si.png"))
-
-    if show:
-        print("👀 Figures displayed interactively.")
-    else:
-        print("✅ Plots saved to 'output/' folder.")
+        self.load_dataset()         # loads or generates
+        model_std, model_si, pred_std, pred_si = self.train_regression()
+        self.generate_plots(model_std, model_si, pred_std, pred_si, show=show)
 
 
+# ======================================================================
+# MAIN SCRIPT ENTRY
+# ======================================================================
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train, replot, or show results.")
-    parser.add_argument("--replot-only", action="store_true",
-                        help="Skip computation and only replot existing data.")
-    parser.add_argument("--show", action="store_true",
-                        help="Display plots instead of saving them.")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--replot-only", action="store_true")
+    parser.add_argument("--show", action="store_true")
     args = parser.parse_args()
 
-    main(replot_only=args.replot_only, show=args.show)
+    Trainer().run(replot_only=args.replot_only, show=args.show)
