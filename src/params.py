@@ -1,12 +1,18 @@
+import numpy as np
 # Paramètres physiques et numériques utilisés pour reproduire Fig.2
 
-#Conversion eV to s^-1
+# Conversion eV to s^-1
 eV_to_Hz = 2.42e14
 
 # Physical parameters (use values similar to the paper)
 U = 12e-6   # nonlinearity (eV) used in paper; here unitless scaling is fine
 gamma_c = 67e9/eV_to_Hz/6.28      # decay rate (eV) -> choose units consistent with simulation
 hbar = 1.0
+phi = -np.pi/2  # homodyne phase
+G = 1  # gain factor
+eta = 0.4  # detection efficiency
+e = 1.6e-19  # electron charge (C)
+beta = 1e4  # local oscillator amplitude
 
 # Numerical parameters
 Ncut = 30           # truncation of Fock space; increase if needed
