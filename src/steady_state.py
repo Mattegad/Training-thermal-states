@@ -1,6 +1,7 @@
 # src/steady_state.py
 from qutip import Qobj, liouvillian, steadystate
 
+
 class SteadyStateSolver:
     """
     Calcule l'état stationnaire rho_ss pour un Hamiltonien H et des opérateurs de dissipation c_ops.

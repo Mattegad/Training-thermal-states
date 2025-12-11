@@ -1,6 +1,7 @@
 # src/moments.py
 import numpy as np
 
+
 class MomentsCalculator:
     """
     Calcule les moments spectraux à partir d'un spectre S(ω).

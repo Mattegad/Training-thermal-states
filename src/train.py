@@ -6,7 +6,7 @@ from tqdm import tqdm
 from sklearn.linear_model import Ridge
 from qutip import destroy
 
-from src.config import physical_params, numerical_params, squeezing_params
+from src.config import physical_params, numerical_params, squeezing_params, spec_config
 from src.hamiltonian import HamiltonianFactory
 from src.dissipation import DissipationFactory
 from src.steady_state import SteadyStateSolver
@@ -21,237 +21,172 @@ class Trainer:
         self.output_dir = output_dir
         os.makedirs(output_dir, exist_ok=True)
 
-        # files
-        self.train_std = os.path.join(output_dir, "training_data_std.npz")
-        self.test_std  = os.path.join(output_dir, "testing_data_std.npz")
-        self.train_si  = os.path.join(output_dir, "training_data_si.npz")
-        self.test_si   = os.path.join(output_dir, "testing_data_si.npz")
+        # file names depend ONLY on the type of spectrum
+        tag = spec_config.which
+        self.train_file = os.path.join(output_dir, f"training_data_{tag}.npz")
+        self.test_file  = os.path.join(output_dir, f"testing_data_{tag}.npz")
 
-        # tools
         self.moments_calc = MomentsCalculator()
-        self.plotter = Plotter()
+        self.plotter      = Plotter()
 
-        # storage
         self.data = None
 
     # ------------------------------------------------------------------
-    # --- Core physics -------------------------------------------------
+    # Spectrum for given r
     # ------------------------------------------------------------------
-    def generate_spectrum(self, r_val, compute_si=True):
-        """Compute stationary spectrum for a given r."""
-        Ncut = numerical_params.Ncut
-        a = destroy(Ncut)
+    def generate_spectrum(self, r):
+        """Compute stationary spectrum for given r for the selected 'which'."""
+
+        N = numerical_params.Ncut
+        a = destroy(N)
 
         # Hamiltonian
         H = HamiltonianFactory.make("kerr", a, U_val=physical_params.U)
 
         # Dissipation
-        c_ops = DissipationFactory.make("squeezed", a,
-                                        alpha=squeezing_params.alphaD_default,
-                                        r=r_val,
-                                        theta=squeezing_params.theta_default,
-                                        nbar=squeezing_params.nbar_default,
-                                        gamma=physical_params.gamma_c)
+        c_ops = DissipationFactory.make(
+            "squeezed", a,
+            alpha=squeezing_params.alphaD_default,
+            r=r,
+            theta=squeezing_params.theta_default,
+            nbar=squeezing_params.nbar_default,
+            gamma=physical_params.gamma_c
+        )
 
-        # Steady state
+        # steady state
         rho_ss = SteadyStateSolver(H, c_ops).compute()
 
-        # Frequencies
-        wlist = np.linspace(numerical_params.wmin, numerical_params.wmax, numerical_params.n_w)
+        # frequencies
+        wlist = np.linspace(numerical_params.wmin,
+                           numerical_params.wmax,
+                           numerical_params.n_w)
 
-        # Spectrum
-        calc = SpectrumCalculator(H, a, rho_ss, c_ops, wlist=wlist, compute_si=compute_si)
-        return calc.compute()
+        # spectrum calculator
+        calc = SpectrumCalculator(
+            H, a, rho_ss, c_ops,
+            wlist=wlist,
+            which=spec_config.which      # <———— KEY POINT
+        )
+
+        return calc.compute()  # returns (w, spectrum)
 
     # ------------------------------------------------------------------
-    # --- Data generation ---------------------------------------------
+    # Compute dataset for this 'which'
     # ------------------------------------------------------------------
     def compute_dataset(self):
-        """Compute and save all training and test data."""
-
         r_train = np.linspace(0.0, 2.0, numerical_params.n_train)
         r_test  = np.random.uniform(0.0, 2.0, numerical_params.n_test)
 
-        # Storage dict
-        result = {
-            "train_std":   {"r": r_train, "omega": [], "S": [], "M": []},
-            "train_si":    {"r": r_train, "omega": [], "S": [], "M": []},
-            "test_std":    {"r": r_test,  "omega": [], "S": [], "M": []},
-            "test_si":     {"r": r_test,  "omega": [], "S": [], "M": []},
-        }
+        result_train = {"r": r_train, "omega": [], "S": [], "M": []}
+        result_test  = {"r": r_test,  "omega": [], "S": [], "M": []}
 
-        # ------------------------
-        # TRAINING
-        # ------------------------
-        print("\n📘 Computing TRAINING data")
+        print(f"\n📘 Computing TRAINING data for spectrum '{spec_config.which}'")
         for r in tqdm(r_train):
-            # Standard spectrum
-            w, S = self.generate_spectrum(r, compute_si=False)
-            result["train_std"]["omega"].append(w)
-            result["train_std"]["S"].append(S)
-            result["train_std"]["M"].append(self.moments_calc.compute(w, S))
+            w, S = self.generate_spectrum(r)
+            result_train["omega"].append(w)
+            result_train["S"].append(S)
+            result_train["M"].append(self.moments_calc.compute(w, S))
 
-            # S_i spectrum
-            w, _, S_i = self.generate_spectrum(r, compute_si=True)
-            result["train_si"]["omega"].append(w)
-            result["train_si"]["S"].append(S_i)
-            result["train_si"]["M"].append(self.moments_calc.compute(w, S_i))
-
-        # ------------------------
-        # TEST
-        # ------------------------
-        print("\n📗 Computing TEST data")
+        print(f"\n📗 Computing TEST data for spectrum '{spec_config.which}'")
         for r in tqdm(r_test):
-            # Standard
-            w, S = self.generate_spectrum(r, compute_si=False)
-            result["test_std"]["omega"].append(w)
-            result["test_std"]["S"].append(S)
-            result["test_std"]["M"].append(self.moments_calc.compute(w, S))
+            w, S = self.generate_spectrum(r)
+            result_test["omega"].append(w)
+            result_test["S"].append(S)
+            result_test["M"].append(self.moments_calc.compute(w, S))
 
-            # S_i
-            w, _, S_i = self.generate_spectrum(r, compute_si=True)
-            result["test_si"]["omega"].append(w)
-            result["test_si"]["S"].append(S_i)
-            result["test_si"]["M"].append(self.moments_calc.compute(w, S_i))
+        np.savez_compressed(self.train_file, **result_train)
+        np.savez_compressed(self.test_file,  **result_test)
 
-        # Save
-        np.savez_compressed(self.train_std, **result["train_std"])
-        np.savez_compressed(self.train_si,  **result["train_si"])
-        np.savez_compressed(self.test_std,  **result["test_std"])
-        np.savez_compressed(self.test_si,   **result["test_si"])
+        print(f"💾 Data saved in '{self.output_dir}'")
+        self.data = {"train": result_train, "test": result_test}
+        return self.data
 
-        print(f"\n💾 Data saved to '{self.output_dir}/'")
-
-        self.data = result
-        return result
-
-    # ------------------------------------------------------------------
-    # --- Load data ----------------------------------------------------
     # ------------------------------------------------------------------
     def load_dataset(self):
-        files = [self.train_std, self.test_std, self.train_si, self.test_si]
-        if not all(os.path.exists(f) for f in files):
-            print("⚠️ No saved data found → computing dataset.")
+        if not (os.path.exists(self.train_file) and os.path.exists(self.test_file)):
+            print(f"⚠️ No dataset found for '{spec_config.which}', generating it...")
             return self.compute_dataset()
 
-        print("📂 Loading dataset from disk...")
-        data = {
-            "train_std": dict(np.load(self.train_std, allow_pickle=True)),
-            "train_si":  dict(np.load(self.train_si,  allow_pickle=True)),
-            "test_std":  dict(np.load(self.test_std,  allow_pickle=True)),
-            "test_si":   dict(np.load(self.test_si,   allow_pickle=True)),
-        }
-        self.data = data
-        return data
+        print(f"📂 Loading dataset for '{spec_config.which}'")
+        train = dict(np.load(self.train_file, allow_pickle=True))
+        test  = dict(np.load(self.test_file,  allow_pickle=True))
+        self.data = {"train": train, "test": test}
+        return self.data
 
     # ------------------------------------------------------------------
-    # --- Regression ---------------------------------------------------
+    # Regression
     # ------------------------------------------------------------------
     def train_regression(self):
-        """Train Ridge regression models for STD and SI- spectra."""
         d = self.data
+        Xtr = np.vstack(d["train"]["M"])
+        ytr = d["train"]["r"]
+        Xte = np.vstack(d["test"]["M"])
+        yte = d["test"]["r"]
 
-        def prepare(split, kind):
-            X = np.vstack(d[split + "_" + kind]["M"])
-            y = d[split + "_" + kind]["r"]
-            return X, y
+        model = Ridge(alpha=1e-14).fit(Xtr, ytr)
+        pred  = model.predict(Xte)
 
-        Xtr_std, ytr_std = prepare("train", "std")
-        Xte_std, yte_std = prepare("test",  "std")
+        nrmse = np.sqrt(np.mean((pred - yte)**2) / np.mean(yte**2))
 
-        Xtr_si, ytr_si = prepare("train", "si")
-        Xte_si, yte_si = prepare("test",  "si")
+        print(f"\n📉 Regression performance for '{spec_config.which}': "
+              f"{100*nrmse:.3f}% NRMSE")
 
-        model_std = Ridge(alpha=1e-14).fit(Xtr_std, ytr_std)
-        model_si  = Ridge(alpha=1e-14).fit(Xtr_si,  ytr_si)
-
-        pred_std = model_std.predict(Xte_std)
-        pred_si  = model_si.predict(Xte_si)
-
-        nrmse_std = np.sqrt(np.mean((pred_std - yte_std)**2) / np.mean(yte_std**2))
-        nrmse_si  = np.sqrt(np.mean((pred_si  - yte_si)**2) / np.mean(yte_si**2))
-
-        print(f"\n📉 Regression performance:")
-        print(f"  → STD : {100*nrmse_std:.3f} % NRMSE")
-        print(f"  → SI- : {100*nrmse_si:.3f} % NRMSE")
-
-        return model_std, model_si, pred_std, pred_si
+        return model, pred
 
     # ------------------------------------------------------------------
-    # --- Plotting -----------------------------------------------------
+    # Plotting
     # ------------------------------------------------------------------
-    def generate_plots(self, model_std, model_si, pred_std, pred_si, show=False):
+    def generate_plots(self, model, pred, show=False):
         d = self.data
 
         def out(name):
             return None if show else os.path.join(self.output_dir, name)
 
-        # SPECTRA
+        # Spectra
         self.plotter.plot_spectra(
-            d["train_std"]["omega"],
-            d["train_std"]["S"],
-            d["train_std"]["r"],
-            outname=out("spectra_training_std.png")
+            d["train"]["omega"],
+            d["train"]["S"],
+            d["train"]["r"],
+            outname=out(f"spectra_training_{spec_config.which}.png")
         )
 
-        self.plotter.plot_spectra(
-            d["train_si"]["omega"],
-            d["train_si"]["S"],
-            d["train_si"]["r"],
-            outname=out("spectra_training_si.png")
-        )
-
-        # MOMENTS VS R
-        all_r_std = np.concatenate([d["train_std"]["r"], d["test_std"]["r"]])
-        all_r_si  = np.concatenate([d["train_si"]["r"],  d["test_si"]["r"]])
-
-        all_M_std = np.vstack([np.vstack(d["train_std"]["M"]),
-                               np.vstack(d["test_std"]["M"])])
-        all_M_si  = np.vstack([np.vstack(d["train_si"]["M"]),
-                               np.vstack(d["test_si"]["M"])])
-
+        # Moments
+        all_r = np.concatenate([d["train"]["r"], d["test"]["r"]])
+        all_M = np.vstack([
+            np.vstack(d["train"]["M"]),
+            np.vstack(d["test"]["M"])
+        ])
         self.plotter.plot_moments_vs_r(
-            all_r_std, normalize_moments(all_M_std),
-            outname=out("moments_vs_r_std.png")
-        )
-        self.plotter.plot_moments_vs_r(
-            all_r_si, normalize_moments(all_M_si),
-            outname=out("moments_vs_r_si.png")
+            all_r, normalize_moments(all_M),
+            outname=out(f"moments_vs_r_{spec_config.which}.png")
         )
 
-        # PREDICTION VS TRUE
+        # Pred vs true
         self.plotter.plot_predicted_vs_true(
-            d["test_std"]["r"], pred_std,
-            outname=out("pred_vs_true_std.png")
-        )
-        self.plotter.plot_predicted_vs_true(
-            d["test_si"]["r"], pred_si,
-            outname=out("pred_vs_true_si.png")
+            d["test"]["r"], pred,
+            outname=out(f"pred_vs_true_{spec_config.which}.png")
         )
 
         if show:
             print("👀 Plots displayed")
         else:
-            print(f"📁 Plots saved in '{self.output_dir}/'")
+            print(f"📁 Plots saved into '{self.output_dir}/'")
 
     # ------------------------------------------------------------------
-    # --- Full pipeline ------------------------------------------------
+    # Pipeline
     # ------------------------------------------------------------------
     def run(self, replot_only=False, show=False):
         if replot_only:
             self.load_dataset()
-            model_std, model_si, pred_std, pred_si = self.train_regression()
-            self.generate_plots(model_std, model_si, pred_std, pred_si, show=show)
+            model, pred = self.train_regression()
+            self.generate_plots(model, pred, show)
             return
 
-        self.load_dataset()         # loads or generates
-        model_std, model_si, pred_std, pred_si = self.train_regression()
-        self.generate_plots(model_std, model_si, pred_std, pred_si, show=show)
+        self.load_dataset()
+        model, pred = self.train_regression()
+        self.generate_plots(model, pred, show)
 
 
-# ======================================================================
-# MAIN SCRIPT ENTRY
-# ======================================================================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--replot-only", action="store_true")

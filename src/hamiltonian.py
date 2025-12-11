@@ -1,6 +1,7 @@
 # src/hamiltonian.py
 from qutip import Qobj, destroy
 
+
 def create_operators(N=30):
     """Créer l'opérateur annihilation et l'identité."""
     a = destroy(N)

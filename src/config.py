@@ -1,6 +1,7 @@
 # src/config.py
 import numpy as np
 from dataclasses import dataclass
+from typing import Literal
 
 # --- Conversion et constantes physiques ---
 eV_to_Hz = 2.42e14
@@ -24,8 +25,8 @@ class NumericalParams:
     n_w: int = 8001               # number of frequency points
     tlist: np.ndarray = None      # optional, can be generated in simulation
     max_iter_steady: int = 10000
-    n_train: int = 1
-    n_test: int = 1
+    n_train: int = 10
+    n_test: int = 10
 
 @dataclass
 class SqueezingParams:
@@ -39,11 +40,13 @@ class SimulationOptions:
 
 @dataclass
 class SpectrumConfig:
-    compute_si: bool = False       # whether to compute S_i-
+    which: Literal["S", "Si_minus", "Si_plus"]  # Type de spectre à calculer      
 
 # --- Instances globales (à importer dans le code) ---
+
+
 physical_params = PhysicalParams()
 numerical_params = NumericalParams()
 squeezing_params = SqueezingParams()
 sim_options = SimulationOptions()
-spec_config = SpectrumConfig()
+spec_config = SpectrumConfig(which="Si_plus")

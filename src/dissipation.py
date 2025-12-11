@@ -3,6 +3,7 @@ from typing import List
 from qutip import Qobj, qeye
 import numpy as np
 
+
 def bogoliubov_b(a, alpha=5.0, r=0.0, theta=0.0):
     """Construire l'opérateur b = (a - alpha) cosh(r) + e^{2iθ} (a† - alpha*) sinh(r)."""
     N = a.shape[0]
@@ -11,6 +12,7 @@ def bogoliubov_b(a, alpha=5.0, r=0.0, theta=0.0):
     sinh = np.sinh(r)
     b = (a - alpha * Id) * cosh + np.exp(2j*theta) * (a.dag() - np.conjugate(alpha) * Id) * sinh
     return b
+
 
 def collapse_ops_for_squeezed_env(a, alpha=5.0, r=0.0, theta=0.0, nbar=0.0, gamma=0.1) -> List[Qobj]:
     """Créer les opérateurs de dissipation pour un environnement squeezé + thermique."""
@@ -23,6 +25,7 @@ def collapse_ops_for_squeezed_env(a, alpha=5.0, r=0.0, theta=0.0, nbar=0.0, gamm
     if R > 0:
         c_ops.append(np.sqrt(R) * b.dag())
     return c_ops
+
 
 class DissipationFactory:
     """Factory pour créer les opérateurs de dissipation selon l'environnement."""
