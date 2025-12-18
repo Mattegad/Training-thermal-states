@@ -9,7 +9,8 @@ eV_to_Hz = 2.42e14
 @dataclass
 class PhysicalParams:
     U: float = 12e-6             # nonlinearity (eV)
-    gamma_c: float = 67e9 / eV_to_Hz / 6.28   # decay rate (Hz equivalent)
+    gamma_c: float = 67e9 / eV_to_Hz / 6.28   # cavity decay rate (eV equivalent)
+    gamma_s: float = 10e3 / eV_to_Hz / 6.28    # OPO decay rate (eV equivalent)
     hbar: float = 1.0
     phi: float = -np.pi / 2      # homodyne phase
     G: float = 1.0                # gain factor
@@ -27,6 +28,9 @@ class NumericalParams:
     max_iter_steady: int = 10000
     n_train: int = 10
     n_test: int = 10
+    n_traj: int = 1000            # number of stochastic trajectories
+    dt_s: float = 1e-2/PhysicalParams.gamma_s     # time step for SDE integration
+    dt_c: float = 1e-2/PhysicalParams.gamma_c     # time step for quantum master equation
 
 @dataclass
 class SqueezingParams:

@@ -7,11 +7,11 @@ from sklearn.linear_model import Ridge
 from qutip import destroy
 
 from src.config import physical_params, numerical_params, squeezing_params, spec_config
-from src.hamiltonian import HamiltonianFactory
-from src.dissipation import DissipationFactory
-from src.steady_state import SteadyStateSolver
-from src.spectrum import SpectrumCalculator
-from src.moments import MomentsCalculator
+from src.models.hamiltonian import HamiltonianFactory
+from src.models.dissipation import DissipationFactory
+from src.models.steady_state import SteadyStateSolver
+from src.observables.spectrum import SpectrumCalculator
+from src.observables.moments import MomentsCalculator
 from src.plot_utils import Plotter
 from src.utils import normalize_moments
 

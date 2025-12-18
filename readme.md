@@ -119,3 +119,18 @@ We thank Wouter Verstraelen et al. for the first results. Their contributions we
 ## 📘 Licence & context  
 This project illustrates the **quantum states tomography** via simulations and reservoir computing. It complements an experiment done in the LKB where we aim at recognizing quantum states with an exciton polariton reservoir.
 Verify the **licence** for use and distribution.  
+
+---
+
+## SDE scheme
+Pour chaque G:
+    Pour chaque trajectoire (10³):
+        1) OPO part de zéro → évolution libre 20/γs → collecte 1000/γs toutes les 1/γs
+        2) Pour chaque échantillon OPO:
+            a) Cavité part du vide
+            b) Relaxation 100/γc
+            c) Stockage 200/γc toutes les 0.5/γc
+        3) FFT → spectre S
+    Moyenne S sur toutes les trajectoires → S_mean
+    Moments spectraux M0..M4
+
