@@ -28,7 +28,7 @@ class NumericalParams:
     max_iter_steady: int = 10000
     n_train: int = 10
     n_test: int = 10
-    n_traj: int = 1000            # number of stochastic trajectories
+    n_traj: int = 10            # number of stochastic trajectories
     dt_s: float = 1e-2/PhysicalParams.gamma_s     # time step for SDE integration
     dt_c: float = 1e-2/PhysicalParams.gamma_c     # time step for quantum master equation
     dt_stock: float = 0.5/PhysicalParams.gamma_c  # time step for data storage

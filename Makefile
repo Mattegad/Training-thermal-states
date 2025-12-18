@@ -35,15 +35,15 @@ train:
 
 ifeq ($(RE),1)
 	@if [ "$(SHOW)" = "1" ]; then \
-		$(PYTHON) -m src.train --replot-only --show; \
+		$(PYTHON) -m src.experiments.train --replot-only --show; \
 	else \
-		$(PYTHON) -m src.train --replot-only; \
+		$(PYTHON) -m src.experiments.train --replot-only; \
 	fi
 else
 	@if [ "$(SHOW)" = "1" ]; then \
-		$(PYTHON) -m src.train --show; \
+		$(PYTHON) -m src.experiments.train --show; \
 	else \
-		$(PYTHON) -m src.train; \
+		$(PYTHON) -m src.experiments.train; \
 	fi
 endif
 
@@ -51,7 +51,7 @@ endif
 
 
 run-OPO-cavity:
-	python run_opo_cavity_spectra.py
+	$(PYTHON) -m src.experiments.run_opo_cavity_spectra
 	@echo "✅ OPO-cavity simulation done."
 
 

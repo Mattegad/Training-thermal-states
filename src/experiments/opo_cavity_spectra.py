@@ -1,7 +1,7 @@
 import numpy as np
-from models.OPO_sde import OPO_SDE
-from models.cavity_sde import KerrCavityPositiveP
-from observables.spectra_sde import SpectraSDE
+from src.models.OPO_sde import OPO_SDE
+from src.models.cavity_sde import KerrCavityPositiveP
+from src.observables.spectra_sde import SpectraSDE
 
 
 class OPOCavitySpectralSimulation:

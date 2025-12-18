@@ -1,5 +1,5 @@
 import numpy as np
-from simulators.sde_solver import SDESolver
+from src.simulators.sde_solver import SDESolver
 
 
 class OPO_SDE:
