@@ -50,8 +50,9 @@ endif
 	@echo "✅ Done."
 
 
-
-
+run-OPO-cavity:
+	python run_opo_cavity_spectra.py
+	@echo "✅ OPO-cavity simulation done."
 
 
 clean:

@@ -7,9 +7,9 @@ class SpectraSDE:
     (cas OPO réel + cavité Kerr)
     """
 
-    def __init__(self, dt, max_tau, n_bins=1024):
+    def __init__(self, dt, max_tau, n_bins=1024): 
         """
-        dt       : pas de temps SDE
+        dt       : pas entre deux points de G1(tau) correspondant au pas de stockage
         max_tau  : temps maximal pour G1(tau)
         n_bins   : résolution fréquentielle
         """
@@ -39,17 +39,16 @@ class SpectraSDE:
             prod = np.conj(a_traj[shift:]) * a_traj[:T-shift]
             G1[i] = np.mean(prod)
 
-        return G1
+        return G1  # Contient les valeurs de G1 pour tau=0, dt, 2dt, ... pour un t_i de l'OPO
 
     # ------------------------------------------------------------------
     # 2) Spectre par transformée de Fourier
     # ------------------------------------------------------------------
     def spectrum_from_G1(self, G1):
-        """
-        Transformée de Fourier réelle du G1
-        """
-        S = np.real(np.fft.fft(G1, n=self.n_bins))
+        S = np.real(np.fft.fft(G1, n=self.n_bins)) * self.dt
+        S = np.fft.fftshift(S)
         freqs = np.fft.fftfreq(self.n_bins, d=self.dt)
+        freqs = np.fft.fftshift(freqs)
         return freqs, S
 
     # ------------------------------------------------------------------
