@@ -8,7 +8,7 @@ from src.config import physical_params, numerical_params
 # --------------------------------------------------
 # Valeurs de G (comme dans l’article)
 # --------------------------------------------------
-G_values = (np.linspace(0.0, 0.9, 6) * 4.5) * 1e3 / (2.42e14)
+G_values = np.linspace(0.0, 5, 6) * 1e3 / (2.42e14)
 
 # --------------------------------------------------
 # Simulation
@@ -42,7 +42,7 @@ plt.show()
 plt.figure(figsize=(7, 4))
 for m in range(1, 5):
     plt.plot(
-        G_values / 4.5,
+        G_values*2.242e14 / 1e3,
         moments[:, m],
         "o-",
         label=fr"$M_{m}$"

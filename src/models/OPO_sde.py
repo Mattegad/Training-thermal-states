@@ -12,8 +12,8 @@ class OPO_SDE:
     def drift(self, x):
         a, a_t = x
         return np.array([
-            -self.gamma_s * a + self.G * a_t,
-            -self.gamma_s * a_t + self.G * a
+            -self.gamma_s/2 * a + self.G * a_t,
+            -self.gamma_s/2 * a_t + np.conjugate(self.G) * a
         ])
 
     def diffusion(self, x):

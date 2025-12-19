@@ -65,15 +65,30 @@ training-thermal-states/
 ├─ requirements.txt       # Python dependencies
 ├─ Makefile               # automation commands
 ├─ prédiction1.png        # example of prediction
-├─ src/                   # source code 
-│   ├─ __init__.py        
-│   ├─ params.py          # physical parameters of the simulation
-│   ├─ utils.py           # useful functions
-│   ├─ simulate.py        # construction of the Hamiltonian and steady states
-│   ├─ spectrum.py        # computation of the spectra S(ω)
-│   ├─ moments.py         # computation of the moments M0–M4
-│   ├─ train.py           # training and ploting
-│   └─ plot_utils.py      # ploting parameters
+├─ output                 # plots and computed data
+└── src/
+    ├── experiments/
+    │   ├── opo_cavity_spectra.py
+    │   ├── run_opo_cavity_spectra.py
+    │   └── train.py
+    │
+    ├── models/
+    │   ├── cavity_sde.py
+    │   ├── dissipation.py
+    │   ├── hamiltonian.py
+    │   ├── OPO_sde.py
+    │   └── steady_state.py
+    │
+    ├── observables/
+    │   ├── moments.py
+    │   ├── spectra_sde.py
+    │   └── spectrum.py
+    │
+    ├── simulators/
+    │   └── sde_solver.py
+    │
+    ├── params.py
+    └── utils.py
 ```
 
 **Principal functions :**
