@@ -14,11 +14,11 @@ class KerrCavityPositiveP:
         return np.array([
             -0.5 * self.gamma_c * a
             - 1j * self.U * a * a * a_t
-            + np.sqrt(self.gamma_c) * a_in,
+            + np.sqrt(0.45*self.gamma_c) * a_in,
 
             -0.5 * self.gamma_c * a_t
             + 1j * self.U * a_t * a_t * a
-            + np.sqrt(self.gamma_c) * a_in_t
+            + np.sqrt(0.45*self.gamma_c) * a_in_t  # the 0.45 comes from the coupling efficiency
         ])
 
     def diffusion(self, x):

@@ -17,6 +17,7 @@ class PhysicalParams:
     eta: float = 0.4              # detection efficiency
     e: float = 1.6e-19            # electron charge (C)
     beta: float = 1e4             # LO amplitude
+    alpha_dep: float = 0.5*np.sqrt(gamma_c/U)        # coherent displacement amplitude
 
 @dataclass
 class NumericalParams:

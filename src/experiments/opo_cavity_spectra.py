@@ -1,7 +1,10 @@
 import numpy as np
+import os
 from src.models.OPO_sde import OPO_SDE
 from src.models.cavity_sde import KerrCavityPositiveP
 from src.observables.spectra_sde import SpectraSDE
+from tqdm import trange
+from tqdm import tqdm
 
 
 class OPOCavitySpectralSimulation:
@@ -20,6 +23,7 @@ class OPOCavitySpectralSimulation:
         self.gamma_s = physical_params.gamma_s
         self.gamma_c = physical_params.gamma_c
         self.U = physical_params.U
+        self.alpha_dep = physical_params.alpha_dep
 
         # Paramètres numériques
         self.n_traj = numerical_params.n_traj
@@ -54,12 +58,12 @@ class OPOCavitySpectralSimulation:
     # Run complet
     # --------------------------------------------------
     def run(self):
-        for G in self.G_values:
-            print(f"\n=== Gain G = {G:.4e} ===")
+        for G in tqdm(self.G_values, desc="Pump beam sweep"):
+            print(f"\n=== Pump beam G = {G:.4e} ===")
 
             spectra_traj = []
 
-            for n in range(self.n_traj):
+            for n in trange(self.n_traj, desc="Positive-P trajectories"):
                 if n % 50 == 0:
                     print(f"  Trajectoire {n}/{self.n_traj}")
 
@@ -75,10 +79,10 @@ class OPOCavitySpectralSimulation:
                 cavity = KerrCavityPositiveP(self.gamma_c, self.U, self.dt_c)
                 cav_output = []
 
-                for a_in, a_in_t in opo_samples:
+                for a_out, a_out_t in tqdm(opo_samples, desc="Cavity runs", leave=False):
                     out = cavity.run_stationary(
-                        a_in=a_in,
-                        a_in_t=a_in_t,
+                        a_in=np.sqrt(0.7*self.gamma_s)*a_out + self.alpha_dep,  # the 0.7 comes from the coupling efficiency
+                        a_in_t=np.sqrt(0.7*self.gamma_s)*a_out_t + self.alpha_dep,
                         t_relax=self.t_cav_relax,
                         t_store=self.t_cav_store,
                         store_period=self.cav_store_period
@@ -109,8 +113,12 @@ class OPOCavitySpectralSimulation:
     # --------------------------------------------------
     # Sauvegarde
     # --------------------------------------------------
-    def save(self, prefix="opo_cavity"):
-        np.save(f"{prefix}_frequencies.npy", self.freqs)
-        np.save(f"{prefix}_spectra.npy", self.all_spectra)
-        np.save(f"{prefix}_moments.npy", self.all_moments)
-        np.save(f"{prefix}_G_values.npy", self.G_values)
+
+    def save(self, prefix="opo_cavity", outdir="output_sde"):
+        os.makedirs(outdir, exist_ok=True)
+
+        np.save(f"{outdir}/{prefix}_frequencies.npy", self.freqs)
+        np.save(f"{outdir}/{prefix}_spectra.npy", self.all_spectra)
+        np.save(f"{outdir}/{prefix}_moments.npy", self.all_moments)
+        np.save(f"{outdir}/{prefix}_G_values.npy", self.G_values)
+
