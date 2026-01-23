@@ -2,7 +2,7 @@ import numpy as np
 import os
 from src.models.OPO_sde import OPO_SDE
 from src.models.cavity_sde import KerrCavityPositiveP
-from src.observables.spectra_sde import SpectraSDE
+from Old_src.Old_SDE.spectra_sde import SpectraSDE
 from tqdm import trange
 from tqdm import tqdm
 
