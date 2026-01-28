@@ -4,3 +4,5 @@ matplotlib>=3.5
 scikit-learn>=1.0
 qutip>=4.6
 tqdm
+joblib>=1.1
+numba>=0.55

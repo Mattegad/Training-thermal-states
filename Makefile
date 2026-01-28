@@ -7,6 +7,7 @@
 VENV = .venv
 
 # Python executable inside venv
+PYTHON_VERSION = 3.10
 PYTHON = $(VENV)/bin/python
 
 # Source directory
@@ -21,9 +22,9 @@ SRC = src
 all: setup run
 
 setup:
-	@echo "🔧 Setting up virtual environment..."
-	@test -d $(VENV) || python3 -m venv $(VENV)
-	@$(PYTHON) -m pip install --upgrade pip
+	@echo "🔧 Setting up Python $(PYTHON_VERSION) virtual environment..."
+	@test -d $(VENV) || python$(PYTHON_VERSION) -m venv $(VENV)
+	@$(PYTHON) -m pip install --upgrade pip setuptools wheel
 	@$(PYTHON) -m pip install --upgrade --upgrade-strategy eager -r requirements.txt
 	@echo "✅ Environment ready."
 
@@ -53,6 +54,11 @@ endif
 run-OPO-cavity:
 	$(PYTHON) -m src.experiments.run_opo_cavity_spectra
 	@echo "✅ OPO-cavity simulation done."
+
+
+run-SDE:
+	$(PYTHON) -m src.train_sde
+	@echo "✅ SDE simulation done."
 
 
 clean:

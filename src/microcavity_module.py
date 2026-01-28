@@ -1,11 +1,164 @@
 import numpy as np
 from numpy.fft import fft, ifft, fftshift
-from numpy.linalg import expm
 from scipy.optimize import fsolve
+from numba import njit
+from scipy.linalg import expm
+from src.config import NumericalParams
+
+
+
+@njit(fastmath=True, parallel=True)
+def microcavity_sde_kernel(
+    delp_in, delcptil_in,
+    Psi, Ufreq, gammacav, eps_p,
+    cavtimearray, dt
+):
+    """
+    Intègre les équations stochastiques de la microcavité.
+    
+    Dimensions :
+    - delp_in, delcptil_in : (Ntraj,)
+    - sortie : (Ntraj, Nrelt)
+    """
+
+    Ntraj = delp_in.size
+    Nrelt = cavtimearray.size
+
+    delp = np.zeros(Ntraj, np.complex128) # initialisation des fluctuations  de psi à t=0
+    delcptil = np.zeros(Ntraj, np.complex128) # initialisation des fluctuations de psitilde à t=0
+
+    # stockage de psi fluctuations \delta\psi(j,t_n), j=traj, t_n=time
+    delpresultarray = np.zeros((Ntraj, Nrelt), np.complex128)
+    delcptilresultarray = np.zeros((Ntraj, Nrelt), np.complex128)
+
+    halfdt = 0.5 * dt
+    time = 0.0
+
+    for k in range(Nrelt):
+        target_time = cavtimearray[k]
+
+        while time < target_time:
+
+            xi = np.random.randn(Ntraj) / np.sqrt(dt)
+            xitil = np.random.randn(Ntraj) / np.sqrt(dt)
+
+            # ============================
+            # Première demi-étape
+            # ============================
+            d_delp_lin = (
+                0.5 * (-gammacav)
+                - 1j * Ufreq * (
+                    2*np.abs(Psi)**2
+                    + delcptil*delp
+                    + 2*Psi*delcptil
+                    + np.conj(Psi)*delp
+                )
+                + np.sqrt(-1j * Ufreq) * xi
+                + 0.5j * Ufreq
+            )
+
+            d_delp_rest = (
+                np.sqrt(eps_p * gammacav) * delp_in
+                - 1j * Ufreq * Psi**2 * delcptil
+                + np.sqrt(-1j * Ufreq) * Psi * xi
+                + 0.5j * Ufreq * Psi
+            )
+
+            d_delcptil_lin = (
+                0.5 * (-gammacav)
+                + 1j * Ufreq * (
+                    2*np.abs(Psi)**2
+                    + delcptil*delp
+                    + 2*np.conj(Psi)*delp
+                    + Psi*delcptil
+                )
+                + np.sqrt(1j * Ufreq) * xitil
+                - 0.5j * Ufreq
+            )
+
+            d_delcptil_rest = (
+                np.sqrt(eps_p * gammacav) * delcptil_in
+                + 1j * Ufreq * np.conj(Psi)**2 * delp
+                + np.sqrt(1j * Ufreq) * np.conj(Psi) * xitil
+                - 0.5j * Ufreq * np.conj(Psi)
+            )
+
+            middelp = (
+                (delp + d_delp_rest/d_delp_lin)
+                * np.exp(d_delp_lin * halfdt)
+                - d_delp_rest/d_delp_lin
+            )
+
+            middelcptil = (
+                (delcptil + d_delcptil_rest/d_delcptil_lin)
+                * np.exp(d_delcptil_lin * halfdt)
+                - d_delcptil_rest/d_delcptil_lin
+            )
+
+            # ============================
+            # Seconde demi-étape
+            # ============================
+            d_delp_lin = (
+                0.5 * (-gammacav)
+                - 1j * Ufreq * (
+                    2*np.abs(Psi)**2
+                    + middelcptil*middelp
+                    + 2*Psi*middelcptil
+                    + np.conj(Psi)*middelp
+                )
+                + np.sqrt(-1j * Ufreq) * xi
+                + 0.5j * Ufreq
+            )
+
+            d_delp_rest = (
+                np.sqrt(eps_p * gammacav) * delp_in
+                - 1j * Ufreq * Psi**2 * middelcptil
+                + np.sqrt(-1j * Ufreq) * Psi * xi
+                + 0.5j * Ufreq * Psi
+            )
+
+            d_delcptil_lin = (
+                0.5 * (-gammacav)
+                + 1j * Ufreq * (
+                    2*np.abs(Psi)**2
+                    + middelcptil*middelp
+                    + 2*np.conj(Psi)*middelp
+                    + Psi*middelcptil
+                )
+                + np.sqrt(1j * Ufreq) * xitil
+                - 0.5j * Ufreq
+            )
+
+            d_delcptil_rest = (
+                np.sqrt(eps_p * gammacav) * delcptil_in
+                + 1j * Ufreq * np.conj(Psi)**2 * middelp
+                + np.sqrt(1j * Ufreq) * np.conj(Psi) * xitil
+                - 0.5j * Ufreq * np.conj(Psi)
+            )
+
+            delp = (
+                (delp + d_delp_rest/d_delp_lin)
+                * np.exp(d_delp_lin * dt)
+                - d_delp_rest/d_delp_lin
+            )
+
+            delcptil = (
+                (delcptil + d_delcptil_rest/d_delcptil_lin)
+                * np.exp(d_delcptil_lin * dt)
+                - d_delcptil_rest/d_delcptil_lin
+            )
+
+            time += dt
+
+        delpresultarray[:, k] = delp
+        delcptilresultarray[:, k] = delcptil
+
+    return delpresultarray, delcptilresultarray
+
 
 class OPOField:
     """Simule la dynamique de l'OPO."""
-    def __init__(self, gammaOPO=10.0, Ntest=10, eps1=0.7, weight=1.0, angle=0.0, seed=None):
+    def __init__(self, gammaOPO=10.0, Ntest=10, eps1=0.7, weight=1.0, angle=0.0, seed=NumericalParams.seed):
         self.gammaOPO = gammaOPO
         self.Ntest = Ntest
         self.eps1 = eps1
@@ -26,8 +179,8 @@ class OPOField:
         tmin = 0.0
         tmax = tmax_mult / self.gammaOPO - self.tstep
         self.timearr = np.arange(tmin, tmax + self.tstep, self.tstep)
-        self.relevanttimes = self.timearr >= (20 / self.gammaOPO)  # ignore first 20/gammaOPO
-        self.Nrelt = np.sum(self.relevanttimes)
+        self.relevanttimes = self.timearr >= (20 / self.gammaOPO)  # ignore first 20/gammaOPO, tableau booléen de 0 et 1
+        self.Nrelt = np.sum(self.relevanttimes)   # nombre de temps pertinents
         self.omegaarr = np.linspace(
             -np.pi / self.tstep,
             np.pi / self.tstep - 2*np.pi/(self.tstep*self.Nrelt),
@@ -93,52 +246,19 @@ class Microcavity:
             return [dX, dY]
 
         XPmf = fsolve(GPESS, [np.real(Psi_in), np.imag(Psi_in)]) # Calcul de l'état stationnaire moyen
-        Psi = XPmf[0] + 1j*XPmf[1]  # État stationnaire moyen complexe
-
-        delp = np.zeros(Ntraj, dtype=np.complex128) # initialisation des fluctuations  de psi à t=0
-        delcptil = np.zeros(Ntraj, dtype=np.complex128) # initialisation des fluctuations de psitilde à t=0
+        Psi = XPmf[0] + 1j*XPmf[1]  # État stationnaire moyen complexe 
 
         dt = 1e-2 / self.gammacav  # pas de temps d'intégration
-        halfdt = 0.5*dt
         tstep = 0.5 / self.gammacav  # pas de stockage
         cavtimearray = np.arange(100/self.gammacav, 300/self.gammacav, tstep)  # On stocke entre 100/gammacav et 300/gammacav
         Nrelt = len(cavtimearray)
 
-        # stockage de psi fluctuations \delta\psi(j,t_n), j=traj, t_n=time  
-        delpresultarray = np.zeros((Ntraj, Nrelt), dtype=np.complex128)  
-        delcptilresultarray = np.zeros((Ntraj, Nrelt), dtype=np.complex128)
-
-        time = 0.0
-        while time < cavtimearray[-1]:
-            """Calcul des fluctuations via l'intégration SDE semi-implicite exponentielle."""
-            xi = np.random.randn(Ntraj)/np.sqrt(dt)
-            xitil = np.random.randn(Ntraj)/np.sqrt(dt)
-
-            # partie linéaire exponentiable
-            d_delp_lin = (0.5*(-self.gammacav) - 1j*self.Ufreq*(2*np.abs(Psi)**2 + delcptil*delp + 2*Psi*delcptil + np.conj(Psi)*delp) + np.sqrt(-1j*self.Ufreq)*xi + 0.5j*self.Ufreq)
-            # partie restante
-            d_delp_rest = (np.sqrt(self.eps_p*self.gammacav)*delp_in - 1j*self.Ufreq*Psi**2*delcptil + np.sqrt(-1j*self.Ufreq)*Psi*xi + 0.5j*self.Ufreq*Psi)
-            d_delcptil_lin = (0.5*(-self.gammacav) + 1j*self.Ufreq*(2*np.abs(Psi)**2 + delcptil*delp + 2*np.conj(Psi)*delp + Psi*delcptil) + np.sqrt(1j*self.Ufreq)*xitil - 0.5j*self.Ufreq)
-            d_delcptil_rest = (np.sqrt(self.eps_p*self.gammacav)*delcptil_in + 1j*self.Ufreq*np.conj(Psi)**2*delp + np.sqrt(1j*self.Ufreq)*np.conj(Psi)*xitil - 0.5j*self.Ufreq*np.conj(Psi))
-
-            middelp = ((delp + d_delp_rest/d_delp_lin)*np.exp(d_delp_lin*halfdt) - d_delp_rest/d_delp_lin)
-            middelcptil = ((delcptil + d_delcptil_rest/d_delcptil_lin)*np.exp(d_delcptil_lin*halfdt) - d_delcptil_rest/d_delcptil_lin)
-
-            d_delp_lin = (0.5*(-self.gammacav) - 1j*self.Ufreq*(2*np.abs(Psi)**2 + middelcptil*middelp + 2*Psi*middelcptil + np.conj(Psi)*middelp) + np.sqrt(-1j*self.Ufreq)*xi + 0.5j*self.Ufreq)
-            d_delp_rest = (np.sqrt(self.eps_p*self.gammacav)*delp_in - 1j*self.Ufreq*Psi**2*middelcptil + np.sqrt(-1j*self.Ufreq)*Psi*xi + 0.5j*self.Ufreq*Psi)
-            d_delcptil_lin = (0.5*(-self.gammacav) + 1j*self.Ufreq*(2*np.abs(Psi)**2 + middelcptil*middelp + 2*np.conj(Psi)*middelp + Psi*middelcptil) + np.sqrt(1j*self.Ufreq)*xitil - 0.5j*self.Ufreq)
-            d_delcptil_rest = (np.sqrt(self.eps_p*self.gammacav)*delcptil_in + 1j*self.Ufreq*np.conj(Psi)**2*middelp + np.sqrt(1j*self.Ufreq)*np.conj(Psi)*xitil - 0.5j*self.Ufreq*np.conj(Psi))
-
-            delp = ((delp + d_delp_rest/d_delp_lin)*np.exp(d_delp_lin*dt) - d_delp_rest/d_delp_lin)
-            delcptil = ((delcptil + d_delcptil_rest/d_delcptil_lin)*np.exp(d_delcptil_lin*dt) - d_delcptil_rest/d_delcptil_lin)
-
-            time += dt
-            # Stockage des résultats aux temps spécifiés
-            idx = np.where(np.abs(cavtimearray - time) < dt/2)[0]
-            if idx.size > 0:
-                delpresultarray[:, idx[0]] = delp
-                delcptilresultarray[:, idx[0]] = delcptil
-
+        delpresultarray, delcptilresultarray = microcavity_sde_kernel(
+            delp_in, delcptil_in,
+            Psi, self.Ufreq, self.gammacav, self.eps_p,
+            cavtimearray, dt
+        )
+        
         Convratio = np.sum(np.isfinite(delpresultarray[:, -1] + delcptilresultarray[:, -1])) / Ntraj  # ratio de convergence
         # Reconstruction des sorties complètes (moyenne temporelle des fluctuations + état moyen)
         psi_out = (np.mean(delpresultarray, axis=1) + Psi).reshape(inshape) * np.sqrt(self.gammacav*self.unitrescaling)
@@ -152,39 +272,160 @@ class Microcavity:
         # Moyenne de g1 sur les trajectoires
         meancavg1 = np.nanmean(cavg1, axis=0)
         # Spectre optique pour chaque trajectoire
-        opticalspecarr = np.abs(fftshift(ifft(cavg1, axis=1), axes=1))
+        opticalspecarr = np.abs(fftshift(ifft(cavg1))) * tstep
         cavomegaarr = np.linspace(-np.pi/tstep, np.pi/tstep - 2*np.pi/(tstep*Nrelt), Nrelt)
         # Moyenne du spectre optique sur les trajectoires
         meanopticalspecarr = np.nanmean(opticalspecarr, axis=0)
+        # symétrisation et annulation en omega=0
+        meanopticalspecarr[np.abs(cavomegaarr) < 1e-10] = 0.0
+        meanopticalspecarr[0] = 0.0
 
-        return psi_out, cpsitil_out, cavtimearray, meancavg1, cavomegaarr, meanopticalspecarr, Convratio
+        return psi_out, cpsitil_out, cavtimearray, meancavg1, cavomegaarr, opticalspecarr, meanopticalspecarr, Convratio
 
 
 class SpectralAnalysis:
-    """Analyse les spectres et prédit G via ridge regression."""
-    def __init__(self, spectra, cavomegaarr, depvararray, Ntrain=10, ridgepar=0.01):
+    """
+    Analyse les spectres et prédit G via ridge regression.
+
+    mode:
+        - "raw"      : moments du spectre brut
+        - "absdiff"  : moments de S - S_ref
+        - "reldiff"  : moments de (S - S_ref) / S_ref
+        - "centered" : moments centrés autour de M1
+    """
+    def __init__(
+        self,
+        spectra,
+        cavomegaarr,
+        depvararray,
+        Ntrain=10,
+        ridgepar=1e-14,
+        mode="raw",
+        ref_index=0,
+    ):
         self.spectra = spectra
         self.cavomegaarr = cavomegaarr
         self.depvararray = depvararray
         self.Ntrain = Ntrain
         self.ridgepar = ridgepar
+        self.mode = mode
+        self.ref_index = ref_index  # spectre de référence (MATLAB: spectra(1,:))
 
     def compute_moments(self):
         S = self.spectra.copy()
-        S[:, np.abs(self.cavomegaarr) < 1e-10] = 0.0
-        S[:, 0] = 0.0
-        M0 = np.nanmean(S, axis=1)
-        M1 = np.nanmean(S*self.cavomegaarr, axis=1)/M0
-        M2 = np.nanmean(S*self.cavomegaarr**2, axis=1)/M0
-        M3 = np.nanmean(S*self.cavomegaarr**3, axis=1)/M0
-        M4 = np.nanmean(S*self.cavomegaarr**4, axis=1)/M0
-        self.moments = [M0, M1, M2, M3, M4]
+
+        # ----- choix du mode -----
+        if self.mode == "raw":
+            Suse = S
+
+        elif self.mode == "absdiff":
+            Sref = S[self.ref_index, :]
+            Suse = S - Sref
+
+        elif self.mode == "reldiff":
+            Sref = S[self.ref_index, :]
+            Suse = (S - Sref[None, :]) / Sref[None, :]
+        elif self.mode == "centered":
+            # centré autour de la moyenne fréquentielle
+            M0_tmp = np.nanmean(S, axis=1)
+            M1_tmp = np.nanmean(S * self.cavomegaarr, axis=1) / M0_tmp
+            omega_c = self.cavomegaarr[None, :] - M1_tmp[:, None]
+            Suse = S
+        else:
+            raise ValueError(f"mode inconnu: {self.mode}")
+
+        # ----- calcul des moments -----
+        M0 = np.nanmean(Suse, axis=1)
+
+        if self.mode == "centered":
+            M1 = np.zeros_like(M0)
+            M2 = np.nanmean(Suse * omega_c**2, axis=1) / M0
+            M3 = np.nanmean(Suse * omega_c**3, axis=1) / M0
+            M4 = np.nanmean(Suse * omega_c**4, axis=1) / M0
+        else:
+            M1 = np.nanmean(Suse * self.cavomegaarr, axis=1) / M0
+            M2 = np.nanmean(Suse * self.cavomegaarr**2, axis=1) / M0
+            M3 = np.nanmean(Suse * self.cavomegaarr**3, axis=1) / M0
+            M4 = np.nanmean(Suse * self.cavomegaarr**4, axis=1) / M0
+
+        self.moments = np.vstack([M0, M1, M2, M3, M4])
 
     def ridge_regression(self):
-        uraw = np.vstack([np.ones(self.Ntrain)] + [self.moments[m][:self.Ntrain] for m in range(5)])
-        self.W = self.depvararray[:self.Ntrain] @ uraw.T @ np.linalg.inv(uraw @ uraw.T + self.ridgepar*np.eye(uraw.shape[0]))
+        M0, M1, M2, M3, M4 = self.moments
+
+        finite = (
+            np.isfinite(M0)
+            & np.isfinite(M1)
+            & np.isfinite(M2)
+            & np.isfinite(M3)
+            & np.isfinite(M4)
+        )
+
+        idx = np.where(finite)[0]
+        idx_train = idx[:self.Ntrain]
+        idx_test = idx[self.Ntrain:]
+
+        u = np.vstack([
+            np.ones(len(idx_train)),
+            M0[idx_train],
+            M1[idx_train],
+            M2[idx_train],
+            M3[idx_train],
+            M4[idx_train],
+        ])
+
+        y = self.depvararray[idx_train]
+
+        self.W = (
+            y @ u.T
+            @ np.linalg.inv(u @ u.T + self.ridgepar * np.eye(u.shape[0]))
+        )
+
+        self._idx_train = idx_train
+        self._idx_test = idx_test
 
     def predict(self):
-        vraw = np.vstack([np.ones(len(self.depvararray))] + [self.moments[m] for m in range(5)])
-        self.prediction = self.W @ vraw
-        return self.prediction
+        M0, M1, M2, M3, M4 = self.moments
+        idx_test = self._idx_test
+
+        v = np.vstack([
+            np.ones(len(idx_test)),
+            M0[idx_test],
+            M1[idx_test],
+            M2[idx_test],
+            M3[idx_test],
+            M4[idx_test],
+        ])
+
+        ypred = self.W @ v
+
+        self.prediction = np.full_like(self.depvararray, np.nan, dtype=float)
+        self.prediction[idx_test] = ypred
+
+    def compute_nrmse(self):
+        """
+        Compute NRMSE on test points only (where prediction is finite)
+        """
+        y_true = self.depvararray
+        y_pred = self.prediction
+        # masque des points prédits
+        mask = np.isfinite(y_pred)
+
+        if np.sum(mask) == 0:
+            raise RuntimeError("No valid prediction points to compute NRMSE.")
+        err2 = (y_pred[mask] - y_true[mask])**2
+        nrmse = np.sqrt(
+            np.mean(err2) / np.mean(y_true[mask]**2)
+        )
+
+        return nrmse
+
+    def get_results(self):
+        return {
+            "G_true": self.depvararray,
+            "G_pred": self.prediction,
+            "moments": self.moments,
+            "weights": self.W,
+            "mode": self.mode,
+        }
+

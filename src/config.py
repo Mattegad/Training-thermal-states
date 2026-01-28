@@ -37,12 +37,13 @@ class NumericalParams:
     max_iter_steady: int = 10000
     n_train: int = 10
     n_test: int = 10
-    Ntraj: int = 1000           # number of stochastic trajectories
+    Ntraj: int = 10           # number of stochastic trajectories
     Ntest   : int = 10               # number of test G values
     #n_traj: int = 10            # number of stochastic trajectories
     dt_s: float = 1e-1/PhysicalParams.gamma_s     # time step for OPO SDE integration
     dt_c: float = 1e-1/PhysicalParams.gamma_c     # time step for cavity SDE integration
     dt_stock: float = 0.5/PhysicalParams.gamma_c  # time step for data storage
+    seed: int = 0               # random seed for reproducibility
 
 @dataclass
 class SqueezingParams:

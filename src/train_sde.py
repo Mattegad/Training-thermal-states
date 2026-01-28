@@ -1,12 +1,14 @@
-from microcavity_module import OPOField, Microcavity
-from config import PhysicalParams, NumericalParams
-from simulation_runner import SimulationRunner
-from data_manager import DataManager
-from plotter import Plotter
+from src.microcavity_module import OPOField, Microcavity
+from src.config import PhysicalParams, NumericalParams
+from src.simulation_runner import SimulationRunner
+from src.data_manager import DataManager
+from src.plotter import Plotter
+import os
 
 if __name__ == "__main__":
 
-    outdir = "data/run_GdepforNtraj1e3"
+    outdir = "data/run_GdepforNtraj1"
+    os.makedirs(outdir, exist_ok=True)
 
     opo = OPOField(
         gammaOPO=PhysicalParams.gammaOPO,
@@ -34,6 +36,8 @@ if __name__ == "__main__":
 
     data = manager.get_data()
 
-    plotter = Plotter(data)
+    plotter = Plotter(data, outdir)
     plotter.plot_spectra()
     plotter.plot_centered()
+    plotter.plot_moments()
+    plotter.plot_prediction()
